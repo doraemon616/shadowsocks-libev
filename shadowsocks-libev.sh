@@ -50,14 +50,6 @@ function pre_install(){
     fi
     echo "password:$shadowsockspwd"
     echo "####################################"
-    #Set shadowsocks-libev config server_port
-    echo "Please input server_port for shadowsocks-libev:"
-    read -p "(Default server_port: 65535):" shadowsocksspt
-    if [ "$shadowsocksspt" = "" ]; then
-        shadowsocksspt="server_port"
-    fi
-    echo "server_port:$shadowsocksspt"
-    echo "####################################"
     get_char(){
         SAVEDSTTY=`stty -g`
         stty -echo
@@ -112,7 +104,7 @@ function config_shadowsocks(){
     cat > /etc/shadowsocks-libev/config.json<<-EOF
 {
     "server":"${IP}",
-    "server_port":"${servr_port}",
+    "server_port":65535,
     "local_address":"127.0.0.1",
     "local_port":1080,
     "password":"${shadowsockspwd}",
