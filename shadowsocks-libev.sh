@@ -4,11 +4,16 @@ export PATH
 #===============================================================================================
 #   System Required:  CentOS6.x (32bit/64bit)
 #   Description:  Install Shadowsocks(libev) for CentOS
+#   Author: Teddysun <i@teddysun.com>
+#   Intro:  http://teddysun.com/357.html
 #===============================================================================================
 
 clear
 echo "#############################################################"
 echo "# Install Shadowsocks(libev) for CentOS6.x (32bit/64bit)"
+echo "# Intro: http://teddysun.com/357.html"
+echo "#"
+echo "# Author: Teddysun <i@teddysun.com>"
 echo "#"
 echo "#############################################################"
 echo ""
@@ -32,6 +37,27 @@ if [[ $EUID -ne 0 ]]; then
 fi
 }
 
+# Get version
+function getversion(){
+    if [[ -s /etc/redhat-release ]];then
+        grep -oE  "[0-9.]+" /etc/redhat-release
+    else    
+        grep -oE  "[0-9.]+" /etc/issue
+    fi    
+}
+
+# CentOS version
+function centosversion(){
+    local code=$1
+    local version="`getversion`"
+    local main_ver=${version%%.*}
+    if [ $main_ver == $code ];then
+        return 0
+    else
+        return 1
+    fi        
+}
+
 # Disable selinux
 function disable_selinux(){
 if [ -s /etc/selinux/config ] && grep 'SELINUX=enforcing' /etc/selinux/config; then
@@ -42,6 +68,14 @@ fi
 
 # Pre-installation settings
 function pre_install(){
+    # Not support CentOS 5.x and 7.x
+    if centosversion 5; then
+        echo "Not support CentOS 5.x, please change to CentOS 6.x and try again."
+        exit 1
+    elif centosversion 7; then
+        echo "Not support CentOS 7.x, please change to CentOS 6.x and try again."
+        exit 1
+    fi
     #Set shadowsocks-libev config password
     echo "Please input password for shadowsocks-libev:"
     read -p "(Default password: FuckGFW):" shadowsockspwd
@@ -94,6 +128,11 @@ function download_files(){
         echo "Unzip shadowsocks-libev failed! Please visit http://teddysun.com/357.html and contact."
         exit 1
     fi
+    # Download start script
+    if ! wget --no-check-certificate https://raw.githubusercontent.com/teddysun/shadowsocks_install/master/shadowsocks-libev; then
+        echo "Failed to download shadowsocks-libev start script!"
+        exit 1
+    fi
 }
 
 # Config shadowsocks
@@ -104,7 +143,7 @@ function config_shadowsocks(){
     cat > /etc/shadowsocks-libev/config.json<<-EOF
 {
     "server":"${IP}",
-    "server_port":65535,
+    "server_port":8989,
     "local_address":"127.0.0.1",
     "local_port":1080,
     "password":"${shadowsockspwd}",
@@ -118,9 +157,9 @@ EOF
 function iptables_set(){
     /sbin/service iptables status 1>/dev/null 2>&1
     if [ $? -eq 0 ]; then
-        /etc/init.d/iptables status | grep '65535' | grep 'ACCEPT' >/dev/null 2>&1
+        /etc/init.d/iptables status | grep '8989' | grep 'ACCEPT' >/dev/null 2>&1
         if [ $? -ne 0 ]; then
-            /sbin/iptables -A INPUT -m state --state NEW -m tcp -p tcp --dport 65535 -j ACCEPT
+            /sbin/iptables -A INPUT -m state --state NEW -m tcp -p tcp --dport 8989 -j ACCEPT
             /etc/init.d/iptables save
             /etc/init.d/iptables restart
         fi
@@ -138,7 +177,7 @@ function install(){
         ./configure
         make && make install
         if [ $? -eq 0 ]; then
-            cp -f $cur_dir/shadowsocks-libev-master/rpm/SOURCES/etc/init.d/shadowsocks-libev /etc/init.d/shadowsocks
+            mv $cur_dir/shadowsocks-libev-master/shadowsocks-libev /etc/init.d/shadowsocks
             chmod +x /etc/init.d/shadowsocks
             # Add run on system start up
             chkconfig --add shadowsocks
@@ -152,7 +191,7 @@ function install(){
             fi
         else
             echo ""
-            echo "Shadowsocks-libev install failed! Please visit contact."
+            echo "Shadowsocks-libev install failed! Please visit http://teddysun.com/357.html and contact."
             exit 1
         fi
     fi
@@ -165,13 +204,13 @@ function install(){
     echo ""
     echo "Congratulations, shadowsocks-libev install completed!"
     echo -e "Your Server IP: \033[41;37m ${IP} \033[0m"
-    echo -e "Your Server Port: \033[41;37m 65535 \033[0m"
+    echo -e "Your Server Port: \033[41;37m 8989 \033[0m"
     echo -e "Your Password: \033[41;37m ${shadowsockspwd} \033[0m"
     echo -e "Your Local IP: \033[41;37m 127.0.0.1 \033[0m"
     echo -e "Your Local Port: \033[41;37m 1080 \033[0m"
     echo -e "Your Encryption Method: \033[41;37m aes-256-cfb \033[0m"
     echo ""
-    echo "Welcome to visit"
+    echo "Welcome to visit:http://teddysun.com/357.html"
     echo "Enjoy it!"
     echo ""
 }
@@ -191,7 +230,7 @@ function uninstall_shadowsocks_libev(){
         fi
         chkconfig --del shadowsocks
         # delete config file
-        rm -rf /etc/shadowsocks
+        rm -rf /etc/shadowsocks-libev
         # delete shadowsocks
         rm -f /usr/local/bin/ss-local
         rm -f /usr/local/bin/ss-tunnel
